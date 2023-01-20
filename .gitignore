@@ -1,7 +1,5 @@
 __pycache__
 *.sqlite3
-lacos-coffeshop
 venv
-lacosCoffeeEnv
 .vscode
 env
