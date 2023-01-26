@@ -4,7 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework import routers
-from FilkaRecepty.views import FoodViewSet, FoodTagsViewSet, StepsViewSet,IngredientsViewSet, IngredientViewSet,UnitViewSet# VolumeViewSet 
+from FilkaRecepty.views import FoodViewSet, FoodTagsViewSet, StepsViewSet,IngredientsViewSet, IngredientViewSet,UnitViewSet,ImageFoodViewSet # VolumeViewSet 
 
 
 # from .views import home_view
@@ -19,6 +19,7 @@ router.register('steps',StepsViewSet)
 router.register('ingredients',IngredientsViewSet) 
 router.register('ingredient',IngredientViewSet) 
 router.register('unit',UnitViewSet) 
+router.register('imagefood',ImageFoodViewSet) 
 # router.register('volume',VolumeViewSet) 
  
 

@@ -118,12 +118,11 @@ class Ingredients(models.Model):
 
 
 
-def get_upload_path(instance, filename):
-    return '/'.join(['image', str(instance.name), filename])
+
 
 class Foods(models.Model):
     name = models.CharField(max_length=60)
-    image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
+    # image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
     ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
     steps=models.ManyToManyField(Steps, related_name='steps')
     # steps = models.ForeignKey(
@@ -133,9 +132,21 @@ class Foods(models.Model):
     #     on_delete=models.CASCADE)
     # #     primary_key=True,
     # # ) 
-    date = models.DateField() 
+    date = models.DateTimeField()
     foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
     
+
+    def __str__(self):
+        return self.name
+
+
+def get_upload_path(instance, filename):
+    return '/'.join(['image', str(instance.name), filename])
+class ImageFood(models.Model):
+    name = models.CharField(max_length=255)
+    food = models.ForeignKey(Foods, on_delete=models.CASCADE)
+    image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
+    date = models.DateTimeField()
 
     def __str__(self):
         return self.name
@@ -150,4 +161,3 @@ class Foods(models.Model):
             return '(Sin imagen)'
     image_img.short_description = 'Thumb'
     image_img.allow_tags = True    
-

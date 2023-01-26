@@ -1,6 +1,6 @@
 from rest_framework import viewsets, mixins
-from FilkaRecepty.serializers import FoodSerializer, FoodTagSerializer,IngredientsSerializer, IngredientSerializer, StepSerializer, UnitSerializer#, VolumeSerializer
-from FilkaRecepty.models import Foods, FoodTags,Steps, Ingredients ,Ingredient, Unit#, Volume
+from FilkaRecepty.serializers import FoodSerializer, FoodTagSerializer,IngredientsSerializer, IngredientSerializer, StepSerializer, UnitSerializer,ImageFoodSerializer#, VolumeSerializer
+from FilkaRecepty.models import Foods, FoodTags,Steps, Ingredients ,Ingredient, Unit,ImageFood#, Volume
 #  
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -29,7 +29,7 @@ class FoodViewSet(viewsets.ModelViewSet):
     queryset = Foods.objects.all()   
     def post(self, request, *args, **kwargs):
             name = request.data['name']
-            image = request.data['image']
+            # image = request.data['image']
             ingredients = request.data['ingredients']
             steps = request.data['steps']
             date = request.data['date']
@@ -41,7 +41,7 @@ class FoodViewSet(viewsets.ModelViewSet):
                 steps=steps,
                 date=date,
                 foodTags=foodTags,
-                image=image
+                # image=image
                 )
             return HttpResponse({'message': 'Food created'}, status=200)
 
@@ -67,6 +67,10 @@ class IngredientViewSet(viewsets.ModelViewSet):
 class UnitViewSet(viewsets.ModelViewSet):
     serializer_class = UnitSerializer
     queryset = Unit.objects.all()          
+
+class ImageFoodViewSet(viewsets.ModelViewSet):
+    serializer_class = ImageFoodSerializer
+    queryset = ImageFood.objects.all()          
 
 
 

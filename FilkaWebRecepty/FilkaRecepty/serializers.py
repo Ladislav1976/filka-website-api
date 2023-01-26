@@ -4,7 +4,7 @@ from logging import error
 from optparse import Values
 from pickle import FALSE
 from rest_framework import serializers
-from FilkaRecepty.models import Foods, FoodTags, Steps, Ingredients,Ingredient, Unit#Volume
+from FilkaRecepty.models import Foods, FoodTags, Steps, Ingredients,Ingredient, Unit,ImageFood#Volume
 
 # class FoodTagSerializer (serializers.Serializer):
 #     # foodTag = serializers.CharField(max_length=60)
@@ -45,10 +45,10 @@ class UnitSerializer(serializers.ModelSerializer):
         model = Unit
         fields = '__all__' # in your case since you are using all fields.     
 
-# class VolumeSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Volume
-#         fields = '__all__'  # in your case since you are using all fields.     
+class ImageFoodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImageFood
+        fields = '__all__'  # in your case since you are using all fields.     
 
     
 class IngredientSerializer(serializers.ModelSerializer):
