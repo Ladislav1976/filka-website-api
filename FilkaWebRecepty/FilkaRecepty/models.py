@@ -83,7 +83,7 @@ class FoodTags(models.Model):
         return self.foodTag  
 
 class Steps(models.Model):
-    step = models.CharField(max_length=500, unique=True)
+    step = models.CharField(max_length=500, unique=False)
     
     def __str__(self):
         return self.step           
