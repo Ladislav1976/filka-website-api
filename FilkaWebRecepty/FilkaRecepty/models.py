@@ -77,7 +77,7 @@ from django.db.models import F, Count
 
 # Create your models here.
 class FoodTags(models.Model):
-    foodTag = models.CharField(max_length=60)
+    foodTag = models.CharField(max_length=60, unique=True)
     
     def __str__(self):
         return self.foodTag  
