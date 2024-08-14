@@ -84,6 +84,7 @@ class FoodTags(models.Model):
 
 class Steps(models.Model):
     step = models.CharField(max_length=500, unique=False)
+    stposition = models.DecimalField(max_digits=10, decimal_places=0)
     
     def __str__(self):
         return self.step           
@@ -146,6 +147,7 @@ class ImageFood(models.Model):
     name = models.CharField(max_length=255)
     food = models.ForeignKey(Foods, on_delete=models.CASCADE)
     image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
+    imgposition = models.DecimalField(max_digits=10, decimal_places=0)
     date = models.DateTimeField()
 
     def __str__(self):
