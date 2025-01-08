@@ -4,7 +4,7 @@ from logging import error
 from optparse import Values
 from pickle import FALSE
 from rest_framework import serializers
-from FilkaRecepty.models import Foods, FoodTags, Steps, Ingredients,Ingredient, Unit,ImageFood#Volume
+from FilkaRecepty.models import Foods, FoodTags, Steps, Ingredients,Ingredient, Unit,ImageFood, Url#Volume
 
 # class FoodTagSerializer (serializers.Serializer):
 #     # foodTag = serializers.CharField(max_length=60)
@@ -40,6 +40,11 @@ class StepSerializer(serializers.ModelSerializer):
         model = Steps
         fields = '__all__'  # in your case since you are using all fields.
 
+class UrlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Url
+        fields = '__all__'  # in your case since you are using all fields.
+
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
@@ -68,7 +73,8 @@ class IngredientsSerializer(serializers.ModelSerializer):
     # ingredientName = IngredientSerializer(many=True)
     class Meta:
         model = Ingredients
-        fields = ('id','units','volume','ingredientName' )# in your case since you are using all fields.    
+        fields = ('id','units','quantity','ingredientName','position' )# in your case since you are using all fields.    
+        # fields = ('id','units','quantity','ingredientName','ingreposition' )# in your case since you are using all fields.   
         # depth = 1 
         # if not Ingredients.objects.filter(fields).exists():
         #     # Insert new data here

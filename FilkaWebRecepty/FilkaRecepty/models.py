@@ -83,8 +83,9 @@ class FoodTags(models.Model):
         return self.foodTag  
 
 class Steps(models.Model):
-    step = models.CharField(max_length=500, unique=False)
-    stposition = models.DecimalField(max_digits=10, decimal_places=0)
+    step = models.CharField(max_length=1500, unique=False)
+    position = models.DecimalField(max_digits=10, decimal_places=0)
+    # stposition = models.DecimalField(max_digits=10, decimal_places=0)
     
     def __str__(self):
         return self.step           
@@ -106,55 +107,38 @@ class Ingredient(models.Model):
     
     def __str__(self):
         return self.ingredient 
+    
+class Url(models.Model):
+    url = models.CharField(max_length=1000, unique=False)
+    
+    def __str__(self):
+        return self.url 
 
 class Ingredients(models.Model):
-    # ingredientsName= models.CharField(max_length=60)
     units = models.ManyToManyField(Unit, related_name='units')
-    volume = models.CharField(max_length=60)
-    # volumes = models.ManyToManyField(Volume, related_name='volumes')
+    quantity = models.CharField(max_length=60)
     ingredientName = models.ManyToManyField(Ingredient, related_name='ingredientName')
-    # def __str__(self):
-    #     return self.units 
+    position = models.DecimalField(max_digits=10, decimal_places=0)
+    # ingreposition = models.DecimalField(max_digits=10, decimal_places=0)
+    def __str__(self):
+        return self.quantity 
   
 
-
-
-
-
-class Foods(models.Model):
-    name = models.CharField(max_length=60)
-    # image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
-    ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
-    steps=models.ManyToManyField(Steps, related_name='steps')
-    # steps = models.ForeignKey(
-    #     Steps,
-    #     null=True,
-    #     # to_field='step',
-    #     on_delete=models.CASCADE)
-    # #     primary_key=True,
-    # # ) 
-    date = models.DateTimeField()
-    foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
-    
-
-    def __str__(self):
-        return self.name
-
-
 def get_upload_path(instance, filename):
-    return '/'.join(['image', str(instance.name), filename])
+    return '/'.join(['image', str(instance.upload_folder), filename])
 class ImageFood(models.Model):
-    name = models.CharField(max_length=255)
-    food = models.ForeignKey(Foods, on_delete=models.CASCADE)
+    upload_folder = models.CharField(max_length=255)
+    # food = models.ForeignKey(Foods, on_delete=models.CASCADE)
     image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
-    imgposition = models.DecimalField(max_digits=10, decimal_places=0)
-    date = models.DateTimeField()
+    position = models.DecimalField(max_digits=10, decimal_places=0)
+    # imgposition = models.DecimalField(max_digits=10, decimal_places=0)
+    # date = models.DateTimeField()
 
     def __str__(self):
-        return self.name
+        return self.upload_folder
 
     def __unicode__(self):
-        return self.name 
+        return self.upload_folder 
 
     def image_img(self):
         if self.image:
@@ -163,3 +147,17 @@ class ImageFood(models.Model):
             return '(Sin imagen)'
     image_img.short_description = 'Thumb'
     image_img.allow_tags = True    
+
+class Foods(models.Model):
+    name = models.CharField(max_length=60)
+    # image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
+    images=models.ManyToManyField(ImageFood, related_name='images',blank=True)
+    ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
+    steps=models.ManyToManyField(Steps, related_name='steps')
+    urls=models.ManyToManyField(Url, related_name='urls',blank=True)
+    date = models.DateTimeField()
+    foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
+    
+
+    def __str__(self):
+        return self.name

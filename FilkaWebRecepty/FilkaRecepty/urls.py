@@ -4,7 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework import routers
-from FilkaRecepty.views import FoodViewSet, FoodTagsViewSet, StepsViewSet,IngredientsViewSet, IngredientViewSet,UnitViewSet,ImageFoodViewSet, SearchFoodViewSet  ,FilterFoodViewSet
+from FilkaRecepty.views import FoodViewSet, FoodTagsViewSet, StepsViewSet,IngredientsViewSet, IngredientViewSet,UnitViewSet,ImageFoodViewSet,UrlViewSet #, #SearchFoodViewSet  ,FilterFoodViewSet
 
 
 from . import views
@@ -13,14 +13,15 @@ from . import views
 router = routers.DefaultRouter()
 # monsters will be accesible on
 router.register("foods", FoodViewSet),
-router.register("foods/search", SearchFoodViewSet,basename='MyFoodsModel'),
-router.register("foods/filter", FilterFoodViewSet,basename='MyFilterModel'),
+#router.register("foods/search", SearchFoodViewSet,basename='MyFoodsModel'),
+#router.register("foods/filter", FilterFoodViewSet,basename='MyFilterModel'),
 # router.register('foodsearch' , SearcgFoodViewSet),
 # router.register(r'^foods/(?P<id>[0-9]+)$', FoodViewSet),
 # router.register("foods/<int:page>", FoodViewPagSet),
 # router.register('foods', FoodViewSet,foodViewSet.list_foods),r"^articles/(?P<year>[0-9]{4})/$"
 router.register('foodTags',FoodTagsViewSet) 
 router.register('steps',StepsViewSet) 
+router.register('url',UrlViewSet) 
 router.register('ingredients',IngredientsViewSet) 
 router.register('ingredient',IngredientViewSet) 
 router.register('unit',UnitViewSet) 
