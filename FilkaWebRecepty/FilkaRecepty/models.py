@@ -1,89 +1,86 @@
 from django.db import models
 from django.db.models import Count
 from django.db.models import F, Count
-# # Create your models here.
-# class FoodTags(models.Model):
-#     foodTag = models.CharField(max_length=60, unique=True)
-    
-#     def __str__(self):
-#         return self.foodTag  
 
-# class Steps(models.Model):
-#     step = models.CharField(max_length=500, unique=True)
-    
-#     def __str__(self):
-#         return self.step           
+from django.contrib.auth.base_user import BaseUserManager
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
+import uuid
 
-# class Unit(models.Model):
-#     unit = models.CharField(max_length=60, unique=True)
-    
-#     def __str__(self):
-#         return self.unit    
+from io import BytesIO
+import PIL
+from PIL import Image
 
-# class Volume(models.Model):
-#     volume = models.CharField(max_length=60, unique=True)
-    
-#     def __str__(self):
-#         return self.volume                        
- 
-# class Ingredient(models.Model):
-#     ingredient = models.CharField(max_length=60, unique=True)
-    
-#     def __str__(self):
-#         return self.ingredient 
-
-# class Ingredients(models.Model):
-#     # id_ingredients= models.IntegerField()
-#     units = models.ManyToManyField(Unit, related_name='units')
-#     volumes = models.ManyToManyField(Volume, related_name='volumes')
-#     ingredientName = models.ManyToManyField(Volume, related_name='ingredientName')
-#     def __str__(self):
-#         return self.ingredientName 
+from django.core.files import File
 
 
-# def get_upload_path(instance, filename):
-#     return '/'.join(['image', str(instance.name), filename])
+class CustomUserManager(BaseUserManager):
+    """
+    Custom user model manager where email is the unique identifiers
+    for authentication instead of usernames.
+    """
 
-# class Foods(models.Model):
-#     name = models.CharField(max_length=60)
-#     image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
-#     ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
-#     steps = models.ForeignKey(
-#         Steps,
-#         to_field='step',
-#         on_delete=models.CASCADE)
-#     #     primary_key=True,
-#     # ) 
-#     date = models.DateField() 
-#     foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
-    
-#     def __str__(self):
-#         return self.name 
+    def create_user(self, email, password, **extra_fields):
+        """
+        Create and save a User with the given email and password.
+        """
+        if not email:
+            raise ValueError(_('The Email must be set'))
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save()
+        return user
 
-#     def __unicode__(self):
-#         return self.name 
+    def create_superuser(self, email, password, **extra_fields):
+        """
+        Create and save a SuperUser with the given email and password.
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
 
-#     def image_img(self):
-#         if self.image:
-#             return u'<img src="%s" width="50" height="50" />' % self.image.url 
-#         else:
-#             return '(Sin imagen)'
-#     image_img.short_description = 'Thumb'
-#     image_img.allow_tags = True    
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(_('Superuser must have is_staff=True.'))
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+        return self.create_user(email, password, **extra_fields)
+
+
+class CustomUser(AbstractUser):
+    ROLE_CHOICES = (
+            
+        ('User_edit', 'User_edit'),
+        ('Editor', 'Editor'),
+        ('Admin', 'Admin'),
+        ('User_readOnly', 'User_readOnly'),
+    )
+    username = None
+    email = models.EmailField(_('email address'), unique=True)
+    role = models.CharField(_("role"),max_length=15, choices=ROLE_CHOICES, default='User_edit')
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
+
+    objects = CustomUserManager()
+
+    def __str__(self):
+        return self.email
 
 
 
 
-
-# Create your models here.
 class FoodTags(models.Model):
-    foodTag = models.CharField(max_length=60)
+    foodTag = models.CharField(max_length=60, unique=True)
     
     def __str__(self):
         return self.foodTag  
 
 class Steps(models.Model):
-    step = models.CharField(max_length=500, unique=True)
+    step = models.CharField(max_length=1500, unique=False)
+    position = models.DecimalField(max_digits=10, decimal_places=0)
+    # stposition = models.DecimalField(max_digits=10, decimal_places=0)
     
     def __str__(self):
         return self.step           
@@ -93,55 +90,56 @@ class Unit(models.Model):
     
     def __str__(self):
         return self.unit    
-
-# class Volume(models.Model):
-#     volume = models.CharField(max_length=60, unique=True)
-    
-#     def __str__(self):
-#         return self.volume                        
+              
  
 class Ingredient(models.Model):
     ingredient = models.CharField(max_length=60, unique=True)
     
     def __str__(self):
         return self.ingredient 
+    
+class Url(models.Model):
+    url = models.CharField(max_length=1000, unique=False)
+    
+    def __str__(self):
+        return self.url 
 
 class Ingredients(models.Model):
-    # ingredientsName= models.CharField(max_length=60)
     units = models.ManyToManyField(Unit, related_name='units')
-    volume = models.CharField(max_length=60)
-    # volumes = models.ManyToManyField(Volume, related_name='volumes')
+    quantity = models.CharField(max_length=60)
     ingredientName = models.ManyToManyField(Ingredient, related_name='ingredientName')
-    # def __str__(self):
-    #     return self.units 
+    position = models.DecimalField(max_digits=10, decimal_places=0)
+    # ingreposition = models.DecimalField(max_digits=10, decimal_places=0)
+    def __str__(self):
+        return self.quantity 
   
 
 
-
 def get_upload_path(instance, filename):
-    return '/'.join(['image', str(instance.name), filename])
+    return '/'.join(['image', str(instance.upload_folder), filename])
 
-class Foods(models.Model):
-    name = models.CharField(max_length=60)
+class ImageFood(models.Model):
+    upload_folder = models.CharField(max_length=255)
     image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
-    ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
-    steps=models.ManyToManyField(Steps, related_name='steps')
-    # steps = models.ForeignKey(
-    #     Steps,
-    #     null=True,
-    #     # to_field='step',
-    #     on_delete=models.CASCADE)
-    # #     primary_key=True,
-    # # ) 
-    date = models.DateField() 
-    foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
-    
+    position = models.DecimalField(max_digits=10, decimal_places=0)
 
+
+    def save(self, * args, **kwargs):
+            super().save( * args, **kwargs)
+            if self.image:
+                img= Image.open(self.image.path)
+                fixed_height = 1000
+                height_percent = (fixed_height / float(img.size[1]))
+                width_size = int( float(img.size[0]) * float(height_percent) )
+                img = img.resize((width_size, fixed_height), PIL.Image.NEAREST)
+                img.save(self.image.path,optimize=True, quality=80)
+
+                
     def __str__(self):
-        return self.name
-
+        return self.upload_folder
+    
     def __unicode__(self):
-        return self.name 
+        return self.upload_folder 
 
     def image_img(self):
         if self.image:
@@ -150,4 +148,30 @@ class Foods(models.Model):
             return '(Sin imagen)'
     image_img.short_description = 'Thumb'
     image_img.allow_tags = True    
+
+class Foods(models.Model):
+    name = models.CharField(max_length=60)
+    images=models.ManyToManyField(ImageFood, related_name='images',blank=True)
+    ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
+    steps=models.ManyToManyField(Steps, related_name='steps')
+    urls=models.ManyToManyField(Url, related_name='urls',blank=True)
+    date = models.DateTimeField()
+    foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
+    user = models.ManyToManyField(CustomUser, related_name='user')
+    
+
+    def __str__(self):
+        return self.name
+
+
+class PasswordReset(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    reset_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_when = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        #  return self.user
+        return f"Password reset for {self.user.email} at {self.created_when}"
+
+
 
