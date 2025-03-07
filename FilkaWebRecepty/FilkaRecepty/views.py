@@ -72,30 +72,12 @@ class SearchAccentFilter(SearchFilter):
 class FoodViewSet(viewsets.ModelViewSet):
     # permission_classes = (IsAuthenticated,)
     serializer_class = FoodSerializer
-    queryset = Foods.objects.all().order_by("name") 
-    # queryset = Foods.objects.annotate(similarity=TrigramSimilarity(Unaccent2("name"), remove_accents("name")))
-    # queryset = queryset.filter(similarity__gt=0.3).order_by('-similarity') 
-    # pagination_class = LargeResultsSetPagination
+    queryset = Foods.objects.all() 
     pagination_class = BlogListCreatePagination
-    filter_backends = [DjangoFilterBackend,SearchFilter]
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
     filterset_fields  = ['foodTags__foodTag'] 
     search_fields  = ['name']
-
-# class SearchFoodViewSet(viewsets.ModelViewSet):
-#     serializer_class = FoodSerializer
-#     queryset = Foods.objects.all()#.order_by("name")
-#     pagination_class = PageNumberPagination
-#     filter_backends = [DjangoFilterBackend, SearchFilter]
-#     search_fields  = ['name']
-
-# class FilterFoodViewSet(viewsets.ModelViewSet):
-# # class FilterFoodViewSet(generics.ListCreateAPIView):
-#     serializer_class = FoodSerializer
-#     queryset = Foods.objects.all()#.order_by("name")
-#     pagination_class = BlogListCreatePagination
-#     filter_backends = [DjangoFilterBackend,SearchFilter]
-#     filterset_fields  = ['foodTags__foodTags'] 
-#     search_fields  = ['name']
+    ordering_fields = '__all__'
 
 
 class FoodTagsViewSet(viewsets.ModelViewSet):

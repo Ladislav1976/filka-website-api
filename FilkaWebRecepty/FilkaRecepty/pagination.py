@@ -148,7 +148,7 @@ PAGE_BREAK = PageLink(url=None, number=None, is_active=False, is_break=True)
 from collections import OrderedDict
 class BlogListCreatePagination(NewPagePagination):
     page_size = 3
-    ordering = "name"
+    # ordering = "name"
     page_size_query_param = 'page_size'
     
 
