@@ -57,17 +57,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 
 from unidecode import unidecode
 
-class SearchAccentFilter(SearchFilter):
-    def get_search_terms(self, request):
-        # terms = super().get_search_terms(request)
-
-        termse = CustomUser.objects.annotate(
-    similarity=TrigramSimilarity(Unaccent('name'), request),
-).filter(similarity__gt=0.3).order_by('-similarity')
-
-        return termse
-   
-
+  
 
 class FoodViewSet(viewsets.ModelViewSet):
     # permission_classes = (IsAuthenticated,)
@@ -76,7 +66,7 @@ class FoodViewSet(viewsets.ModelViewSet):
     pagination_class = BlogListCreatePagination
     filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
     filterset_fields  = ['foodTags__foodTag'] 
-    search_fields  = ['name']
+    search_fields  = ['name', 'steps__step']
     ordering_fields = '__all__'
 
 
