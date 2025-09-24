@@ -44,64 +44,163 @@ from django.contrib.auth import logout
 from django.conf import settings
 from django.urls import reverse
 from django.core.mail import EmailMessage
-from django.contrib.postgres.search import TrigramSimilarity
-from django.contrib.postgres.lookups import Unaccent
 
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.settings import api_settings
 
 from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
+import unicodedata
+from django.db.models.signals import m2m_changed, post_delete
+from django.dispatch import receiver
+import unicodedata
 
-from unidecode import unidecode
+def normalize_text(text: str) -> str:
+    """
+    Remove diacritics from Slovak (or any accented) characters.
+    Example: 'čokoláda' -> 'cokolada'
+    """
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', text)
+        if unicodedata.category(c) != 'Mn'
+    )
 
+@receiver(m2m_changed, sender=Foods.images.through)
+def cleanup_images_on_food_change(sender, instance, action, reverse, pk_set, **kwargs):
+    if action in ["post_remove", "post_clear"]:
+        for pk in pk_set or []:
+            image = ImageFood.objects.get(pk=pk)
+            if not image.images.exists():  # no Foods using this image
+                image.delete()
+
+
+@receiver(post_delete, sender=Foods)
+def cleanup_images_on_food_delete(sender, instance, **kwargs):
+    for image in instance.images.all():
+        if not image.images.exists():  # no other Foods using this image
+            image.delete()
   
+class DiacriticInsensitiveSearchFilter(SearchFilter):
+    """
+    Custom SearchFilter that removes diacritics from search terms
+    so searching works with/without accents.
+    """
 
+    def get_search_terms(self, request):
+        params = super().get_search_terms(request)
+        return [normalize_text(p) for p in params]
+
+    def filter_queryset(self, request, queryset, view):
+        search_fields = self.get_search_fields(request, view)
+        search_terms = self.get_search_terms(request)
+
+        if not search_fields or not search_terms:
+            return queryset
+
+        # Build a Q object for each search term/field
+        orm_lookups = [
+            self.construct_search(str(search_field))
+            for search_field in search_fields
+        ]
+
+        base = queryset
+        for search_term in search_terms:
+            or_queries = Q()
+            for lookup in orm_lookups:
+                # Use icontains on normalized text
+                or_queries |= Q(**{lookup: search_term})
+            base = base.filter(or_queries)
+        return base
+      
 class FoodViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = FoodSerializer
     queryset = Foods.objects.all() 
     pagination_class = BlogListCreatePagination
-    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # filter_backends = [SlovakAccentInsensitiveSearchFilter,OrderingFilter]
+    filter_backends = [DjangoFilterBackend,DiacriticInsensitiveSearchFilter,OrderingFilter]
+
     filterset_fields  = ['foodTags__foodTag'] 
-    search_fields  = ['name', 'steps__step']
-    ordering_fields = '__all__'
+    # search_fields  = ['name', 'steps__step', 'ingredients__ingredientName__ingredient']
+    # search_fields  = [ 'ingredients__ingredientName__ingredient']
+    ordering_fields = ['name','date']
+    def get_queryset(self):
+            queryset = Foods.objects.all()
+            search_query = self.request.query_params.get('search', '')
+
+            if search_query:
+                search_query = self.remove_accents(search_query.lower())  # Normalize input
+
+                # Store matching object IDs instead of full objects
+                matching_ids = []
+                for obj in queryset:
+                    if hasattr(obj, 'name') and isinstance(obj.name, str):
+                        name_normalized = self.remove_accents(obj.name.lower())
+                    else:
+                        name_normalized = ''
+
+                    if hasattr(obj, 'steps'):
+                        for st in obj.steps.all():
+                            if isinstance(st.step, str):
+                                description_normalized = self.remove_accents(st.step.lower())
+                            else:
+                                description_normalized = ''
+                    # if hasattr(obj, 'step') and isinstance(obj.steps, str):
+
+                    #     description_normalized = self.remove_accents(obj.steps.lower())
+                    # else:
+                    #     description_normalized = ''
+
+                    if search_query in name_normalized or search_query in description_normalized:
+                        matching_ids.append(obj.id)  # Store ID instead of object
+
+                # Return a QuerySet filtered by the matched IDs (preserves ordering)
+                return queryset.filter(id__in=matching_ids)
+
+            return queryset  # Default QuerySet
+
+    def remove_accents(self, text):
+            """ Remove diacritics from Slovak text safely. """
+            if not isinstance(text, str):  # Ensure input is a string
+                return text
+            nfkd_form = unicodedata.normalize('NFKD', text)
+            return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 
 class FoodTagsViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = FoodTagSerializer
     queryset = FoodTags.objects.all()       
 
 class StepsViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = StepSerializer
     queryset = Steps.objects.all()      
 
 class UrlViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = UrlSerializer
     queryset = Url.objects.all()         
 
 class IngredientsViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = IngredientsSerializer
     queryset = Ingredients.objects.all()   
 
 class IngredientViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()   
 
 class UnitViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = UnitSerializer
     queryset = Unit.objects.all()          
 
 class ImageFoodViewSet(viewsets.ModelViewSet):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     serializer_class = ImageFoodSerializer
     queryset = ImageFood.objects.all()      
 

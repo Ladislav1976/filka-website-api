@@ -13,7 +13,7 @@ import PIL
 from PIL import Image
 
 from django.core.files import File
-
+import os
 
 class CustomUserManager(BaseUserManager):
     """
@@ -148,6 +148,11 @@ class ImageFood(models.Model):
             return '(Sin imagen)'
     image_img.short_description = 'Thumb'
     image_img.allow_tags = True    
+
+    def delete(self, *args, **kwargs):
+        if self.image and os.path.isfile(self.image.path):
+            os.remove(self.image.path)  # delete file from disk
+        super().delete(*args, **kwargs)    
 
 class Foods(models.Model):
     name = models.CharField(max_length=60)
