@@ -54,8 +54,12 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
 import unicodedata
 from django.db.models.signals import m2m_changed, post_delete
+from django.db.models import Value
+from django.db.models.functions import Replace
+import re
 from django.dispatch import receiver
 import unicodedata
+from django.db import transaction
 
 def normalize_text(text: str) -> str:
     """
@@ -67,26 +71,52 @@ def normalize_text(text: str) -> str:
         if unicodedata.category(c) != 'Mn'
     )
 
-@receiver(m2m_changed, sender=Foods.images.through)
-def cleanup_images_on_food_change(sender, instance, action, reverse, pk_set, **kwargs):
-    if action in ["post_remove", "post_clear"]:
-        for pk in pk_set or []:
-            image = ImageFood.objects.get(pk=pk)
-            if not image.images.exists():  # no Foods using this image
-                image.delete()
+# @receiver(m2m_changed, sender=Foods.images.through)
+# def cleanup_images_on_food_change(sender, instance, action, reverse, pk_set, **kwargs):
+#     if action in ["post_remove", "post_clear"]:
+#         for pk in pk_set or []:
+#             image = ImageFood.objects.get(pk=pk)
+#             if not image.images.exists():  # no Foods using this image
+#                 image.delete()
 
 
-@receiver(post_delete, sender=Foods)
-def cleanup_images_on_food_delete(sender, instance, **kwargs):
-    for image in instance.images.all():
-        if not image.images.exists():  # no other Foods using this image
-            image.delete()
-  
+# @receiver(post_delete, sender=Foods)
+# def cleanup_images_on_food_delete(sender, instance, **kwargs):
+#     for image in instance.images.all():
+#         if not image.images.exists():  # no other Foods using this image
+#             image.delete()
 class DiacriticInsensitiveSearchFilter(SearchFilter):
     """
-    Custom SearchFilter that removes diacritics from search terms
-    so searching works with/without accents.
+    SearchFilter that removes Slovak diacritics from BOTH the DB fields
+    and the search terms.
     """
+
+    # Map of Slovak diacritics to base chars
+    diacritic_map = {
+        'á': 'a', 'ä': 'a', 'č': 'c', 'ď': 'd', 'ľ': 'l', 'ĺ': 'l',
+        'ň': 'n', 'ó': 'o', 'ô': 'o', 'ŕ': 'r', 'š': 's', 'ť': 't',
+        'ú': 'u', 'ý': 'y', 'ž': 'z',
+        'Á': 'A', 'Ä': 'A', 'Č': 'C', 'Ď': 'D', 'Ľ': 'L', 'Ĺ': 'L',
+        'Ň': 'N', 'Ó': 'O', 'Ô': 'O', 'Ŕ': 'R', 'Š': 'S', 'Ť': 'T',
+        'Ú': 'U', 'Ý': 'Y', 'Ž': 'Z',
+    }
+
+    def normalize_queryset(self, queryset, search_fields):
+        """
+        Annotate queryset with diacritic-free versions of search fields.
+        """
+        annotations = {}
+        for field in search_fields:
+            norm_field = f"norm_{re.sub('[^0-9a-zA-Z_]', '_', field)}"
+            expr = Replace(field, Value(" "), Value(" "))  # placeholder
+
+            # Apply all replacements in diacritic_map
+            for src, target in self.diacritic_map.items():
+                expr = Replace(expr, Value(src), Value(target))
+
+            annotations[norm_field] = expr
+
+        return queryset.annotate(**annotations)
 
     def get_search_terms(self, request):
         params = super().get_search_terms(request)
@@ -99,33 +129,66 @@ class DiacriticInsensitiveSearchFilter(SearchFilter):
         if not search_fields or not search_terms:
             return queryset
 
-        # Build a Q object for each search term/field
+        # normalize DB side
+        queryset = self.normalize_queryset(queryset, search_fields)
+
         orm_lookups = [
-            self.construct_search(str(search_field))
-            for search_field in search_fields
+            f"norm_{re.sub('[^0-9a-zA-Z_]', '_', field)}__icontains"
+            for field in search_fields
         ]
 
-        base = queryset
-        for search_term in search_terms:
+        for term in search_terms:
             or_queries = Q()
             for lookup in orm_lookups:
-                # Use icontains on normalized text
-                or_queries |= Q(**{lookup: search_term})
-            base = base.filter(or_queries)
-        return base
+                or_queries |= Q(**{lookup: term})
+            queryset = queryset.filter(or_queries)
+
+        return queryset  
+# class DiacriticInsensitiveSearchFilter(SearchFilter):
+#     """
+#     Custom SearchFilter that removes diacritics from search terms
+#     so searching works with/without accents.
+#     """
+
+#     def get_search_terms(self, request):
+#         params = super().get_search_terms(request)
+#         return [normalize_text(p) for p in params]
+
+#     def filter_queryset(self, request, queryset, view):
+#         search_fields = self.get_search_fields(request, view)
+#         search_terms = self.get_search_terms(request)
+
+#         if not search_fields or not search_terms:
+#             return queryset
+
+#         # Build a Q object for each search term/field
+#         orm_lookups = [
+#             self.construct_search(str(search_field))
+#             for search_field in search_fields
+#         ]
+
+#         base = queryset
+#         for search_term in search_terms:
+#             or_queries = Q()
+#             for lookup in orm_lookups:
+#                 # Use icontains on normalized text
+#                 or_queries |= Q(**{lookup: search_term})
+#             base = base.filter(or_queries)
+#         return base
       
 class FoodViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
     serializer_class = FoodSerializer
     queryset = Foods.objects.all() 
     pagination_class = BlogListCreatePagination
     # filter_backends = [SlovakAccentInsensitiveSearchFilter,OrderingFilter]
     filter_backends = [DjangoFilterBackend,DiacriticInsensitiveSearchFilter,OrderingFilter]
-
     filterset_fields  = ['foodTags__foodTag'] 
-    # search_fields  = ['name', 'steps__step', 'ingredients__ingredientName__ingredient']
+    search_fields  = ['name', 'steps__step', 'ingredients__ingredientName__ingredient']
     # search_fields  = [ 'ingredients__ingredientName__ingredient']
     ordering_fields = ['name','date']
+    ordering = ['-date']
+
     def get_queryset(self):
             queryset = Foods.objects.all()
             search_query = self.request.query_params.get('search', '')
@@ -175,34 +238,94 @@ class FoodTagsViewSet(viewsets.ModelViewSet):
     queryset = FoodTags.objects.all()       
 
 class StepsViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
     serializer_class = StepSerializer
     queryset = Steps.objects.all()      
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        food = self.request.query_params.get("food")  # ?food=...
+        if food:
+            queryset = queryset.filter(food__id=food)  # if you want by name
+            # or: queryset = queryset.filter(food_id=food)  # if you want by id
+        return queryset    
 class UrlViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
     serializer_class = UrlSerializer
-    queryset = Url.objects.all()         
+    queryset = Url.objects.all()  
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        food = self.request.query_params.get("food")  # ?food=...
+        if food:
+            queryset = queryset.filter(food__id=food)  # if you want by name
+            # or: queryset = queryset.filter(food_id=food)  # if you want by id
+        return queryset       
+
 
 class IngredientsViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     serializer_class = IngredientsSerializer
     queryset = Ingredients.objects.all()   
 
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            instance.delete()
+
 class IngredientViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()   
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            instance.delete()
 
 class UnitViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     serializer_class = UnitSerializer
     queryset = Unit.objects.all()          
 
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            instance.delete()
+            
 class ImageFoodViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
     serializer_class = ImageFoodSerializer
-    queryset = ImageFood.objects.all()      
+    queryset = ImageFood.objects.all()  
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        food = self.request.query_params.get("food")  # ?food=...
+        if food:
+            queryset = queryset.filter(food__id=food)  # if you want by name
+            # or: queryset = queryset.filter(food_id=food)  # if you want by id
+        return queryset    
 
 class UsersViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)

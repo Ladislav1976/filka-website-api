@@ -14,6 +14,9 @@ from PIL import Image
 
 from django.core.files import File
 import os
+import shutil
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 class CustomUserManager(BaseUserManager):
     """
@@ -78,6 +81,7 @@ class FoodTags(models.Model):
         return self.foodTag  
 
 class Steps(models.Model):
+    food = models.ForeignKey("Foods", on_delete=models.CASCADE, related_name="steps")
     step = models.CharField(max_length=1500, unique=False)
     position = models.DecimalField(max_digits=10, decimal_places=0)
     # stposition = models.DecimalField(max_digits=10, decimal_places=0)
@@ -99,7 +103,8 @@ class Ingredient(models.Model):
         return self.ingredient 
     
 class Url(models.Model):
-    url = models.CharField(max_length=1000, unique=False)
+    food = models.ForeignKey("Foods", on_delete=models.CASCADE, related_name="urls")
+    url = models.URLField(max_length=1000, unique=False)
     
     def __str__(self):
         return self.url 
@@ -119,6 +124,7 @@ def get_upload_path(instance, filename):
     return '/'.join(['image', str(instance.upload_folder), filename])
 
 class ImageFood(models.Model):
+    food = models.ForeignKey("Foods", on_delete=models.CASCADE, related_name="images")
     upload_folder = models.CharField(max_length=255)
     image = models.ImageField(blank=True, null=True, upload_to=get_upload_path, verbose_name ="Food image")
     position = models.DecimalField(max_digits=10, decimal_places=0)
@@ -150,16 +156,37 @@ class ImageFood(models.Model):
     image_img.allow_tags = True    
 
     def delete(self, *args, **kwargs):
+        """Delete image file and clean up folder if empty"""
         if self.image and os.path.isfile(self.image.path):
-            os.remove(self.image.path)  # delete file from disk
-        super().delete(*args, **kwargs)    
+            file_path = self.image.path
+            folder = os.path.dirname(file_path)
+
+            # delete the file
+            os.remove(file_path)
+
+            # if folder is now empty, remove it
+            if not os.listdir(folder):
+                shutil.rmtree(folder)
+
+        super().delete(*args, **kwargs) 
+        
+@receiver(post_delete, sender=ImageFood)
+def auto_delete_file_on_delete(sender, instance, **kwargs):
+    if instance.image and os.path.isfile(instance.image.path):
+        file_path = instance.image.path
+        folder = os.path.dirname(file_path)
+
+        os.remove(file_path)
+
+        if not os.listdir(folder):
+            shutil.rmtree(folder)         
 
 class Foods(models.Model):
     name = models.CharField(max_length=60)
-    images=models.ManyToManyField(ImageFood, related_name='images',blank=True)
+    # images=models.ManyToManyField(ImageFood, related_name='images',blank=True)
     ingredients = models.ManyToManyField(Ingredients, related_name='ingredients')
-    steps=models.ManyToManyField(Steps, related_name='steps')
-    urls=models.ManyToManyField(Url, related_name='urls',blank=True)
+    # steps=models.ManyToManyField(Steps, related_name='steps')
+    # urls=models.ManyToManyField(Url, related_name='urls',blank=True)
     date = models.DateTimeField()
     foodTags = models.ManyToManyField(FoodTags, related_name='foodTags')
     user = models.ManyToManyField(CustomUser, related_name='user')
