@@ -1,4 +1,4 @@
-from rest_framework.pagination import BasePagination, LimitOffsetPagination, CursorPagination
+from rest_framework.pagination import BasePagination
 # from rest_framework.paginate import PageNumberPagination
 from FilkaRecepty.paginate import PageNumberPagination,NewPagePagination
 from rest_framework.response import Response
@@ -16,24 +16,9 @@ from rest_framework.compat import coreapi, coreschema
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 
 
-import contextlib
-import warnings
-from base64 import b64decode, b64encode
-from collections import namedtuple
-from urllib import parse
 
-from django.core.paginator import InvalidPage
-from django.core.paginator import Paginator as DjangoPaginator
-from django.template import loader
-from django.utils.encoding import force_str
-from django.utils.translation import gettext_lazy as _
 
 from rest_framework import RemovedInDRF317Warning
-from rest_framework.compat import coreapi, coreschema
-from rest_framework.exceptions import NotFound
-from rest_framework.response import Response
-from rest_framework.settings import api_settings
-from rest_framework.utils.urls import remove_query_param, replace_query_param
 
 def _positive_int(integer_string, strict=False, cutoff=None):
     """
@@ -145,7 +130,6 @@ PageLink = namedtuple('PageLink', ['url', 'number', 'is_active', 'is_break'])
 PAGE_BREAK = PageLink(url=None, number=None, is_active=False, is_break=True)
 
 
-from collections import OrderedDict
 class BlogListCreatePagination(NewPagePagination):
     page_size = 3
     # ordering = "name"
