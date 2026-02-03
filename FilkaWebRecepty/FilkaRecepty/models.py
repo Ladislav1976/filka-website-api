@@ -5,6 +5,7 @@ import uuid
 import PIL
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
@@ -130,18 +131,37 @@ def auto_delete_old_avatar_on_change(sender, instance, **kwargs):
                 os.rmdir(folder)
 
 
-class FoodTags(models.Model):
-    foodTag = models.CharField(max_length=60, unique=True)
+class TagGroups(models.Model):
+    groupName = models.CharField(max_length=60, unique=True)
 
     def __str__(self):
-        return self.foodTag
+        return self.groupName
+
+
+class FoodTags(models.Model):
+    foodTag = models.CharField(max_length=60, unique=True)
+    group = models.ForeignKey(
+        TagGroups,
+        related_name="food_tags",
+        on_delete=models.PROTECT,
+    )
+
+    def delete(self, *args, **kwargs):
+        # Skontrolujeme, či je tento tag v nejakom Food objekte
+        if self.foodTags.exists():  # 'foodTags' je related_name z modelu Foods
+            raise ValidationError(
+                f"Tag '{self.foodTag}' nemôžete vymazať, lebo je priradený k receptu."
+            )
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.group.groupName}: {self.foodTag}"
 
 
 class Steps(models.Model):
     food = models.ForeignKey("Foods", on_delete=models.CASCADE, related_name="steps")
     step = models.CharField(max_length=1500, unique=False)
     position = models.DecimalField(max_digits=10, decimal_places=0)
-    # stposition = models.DecimalField(max_digits=10, decimal_places=0)
 
     def __str__(self):
         return self.step
@@ -258,7 +278,7 @@ class Foods(models.Model):
     date = models.DateTimeField()
     foodTags = models.ManyToManyField(FoodTags, related_name="foodTags")
     # user = models.ManyToManyField(CustomUser, related_name='user')
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="foods")
+    user = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name="foods")
 
     def __str__(self):
         return self.name
