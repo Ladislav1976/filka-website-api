@@ -8,6 +8,7 @@ from FilkaRecepty.models import (
     Ingredient,
     Ingredients,
     Steps,
+    TagGroups,
     Unit,
     Url,
 )
@@ -17,6 +18,15 @@ class FoodTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = FoodTags
         fields = "__all__"
+
+
+class TagGroupSerializer(serializers.ModelSerializer):
+    tags = FoodTagSerializer(source="food_tags", many=True, read_only=True)
+
+    class Meta:
+        model = TagGroups
+
+        fields = ["id", "groupName", "tags"]
 
 
 class StepSerializer(serializers.ModelSerializer):

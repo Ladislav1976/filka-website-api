@@ -5,9 +5,10 @@ from typing import Any, Dict
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import authenticate, get_user_model
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.db import transaction
-from django.db.models import Q, Value
+from django.db.models import ProtectedError, Q, Value
 from django.db.models.functions import Replace
 from django.middleware import csrf
 from django.utils import timezone
@@ -45,6 +46,7 @@ from FilkaRecepty.models import (
     Ingredients,
     PasswordReset,
     Steps,
+    TagGroups,
     Unit,
     Url,
 )
@@ -57,6 +59,7 @@ from FilkaRecepty.serializers import (
     IngredientsSerializer,
     LoginSerializer,
     StepSerializer,
+    TagGroupSerializer,
     UnitSerializer,
     UrlSerializer,
     UserSerializer,
@@ -232,6 +235,33 @@ class FoodTagsViewSet(viewsets.ModelViewSet):
     ordering_fields = ["foodTags"]
     ordering = ["foodTags"]
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ValidationError as e:
+            error_message = e.message if hasattr(e, "message") else str(e)
+            return Response(
+                {"detail": error_message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": "Tento záznam je chránený. Najskôr musíte odstrániť všetky prepojené položky."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception:
+            return Response(
+                {"detail": "Vyskytla sa neočakávaná chyba na serveri."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     def get_queryset(self):
         queryset = FoodTags.objects.all()
         search_query = self.request.query_params.get("search", None)
@@ -268,6 +298,35 @@ class FoodTagsViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with transaction.atomic():
             instance.delete()
+
+
+class TagGroupViewSet(viewsets.ModelViewSet):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = TagGroupSerializer
+    queryset = TagGroups.objects.all()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ProtectedError:
+            return Response(
+                {"detail": "Túto skupinu nie je možné vymazať, pokiaľ obsahuje tagy."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except ValidationError as e:
+            # Toto zachytí tvoju vlastnú funkciu delete na FoodTags
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception:
+            # Ak sa stane niečo iné, vrátiš 500
+            return Response(
+                {"detail": "Problem so serverom."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class UsersViewSet(viewsets.ModelViewSet):

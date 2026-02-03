@@ -18,6 +18,7 @@ from .views import (
     RegisterNewAccount,
     ResetPassword,
     StepsViewSet,
+    TagGroupViewSet,
     UnitViewSet,
     UrlViewSet,
     UserLogoutView,
@@ -28,6 +29,7 @@ from .views import (
 router = routers.DefaultRouter()  # noqa: F811
 (router.register("foods", FoodViewSet),)
 router.register("foodTags", FoodTagsViewSet)
+router.register("tagGroups", TagGroupViewSet)
 router.register("steps", StepsViewSet)
 router.register("url", UrlViewSet)
 router.register("ingredients", IngredientsViewSet)
